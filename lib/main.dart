@@ -195,6 +195,22 @@ class _TaskScreenState extends State<TaskScreen> {
     return tasks.where((task) => task.isDone).length;
   }
 
+  String formatDate(DateTime date) {
+    final now = DateTime.now();
+
+    final today = DateTime(now.year, now.month, now.day);
+    final tomorrow = today.add(const Duration(days: 1));
+    final selectedDate = DateTime(date.year, date.month, date.day);
+
+    if (selectedDate == today) {
+      return 'Today';
+    } else if (selectedDate == tomorrow) {
+      return 'Tomorrow';
+    } else {
+      return '${date.day}.${date.month}.${date.year}';
+    }
+  }
+
   void toggleTask(Task task, bool value) {
     setState(() {
       task.isDone = value;
@@ -215,7 +231,8 @@ class _TaskScreenState extends State<TaskScreen> {
 
   void showAddTaskSheet() {
     final titleController = TextEditingController();
-    String selectedDay = 'Today';
+
+    DateTime selectedDate = DateTime.now();
     String selectedCategory = 'Study';
     TimeOfDay selectedTime = TimeOfDay.now();
 
@@ -269,31 +286,30 @@ class _TaskScreenState extends State<TaskScreen> {
 
                     const SizedBox(height: 16),
 
-                    DropdownButtonFormField<String>(
-                      value: selectedDay,
-                      decoration: InputDecoration(
-                        filled: true,
-                        fillColor: Colors.white,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(16),
-                          borderSide: BorderSide.none,
+                    SizedBox(
+                      width: double.infinity,
+                      height: 55,
+                      child: OutlinedButton.icon(
+                        onPressed: () async {
+                          final pickedDate = await showDatePicker(
+                            context: context,
+                            initialDate: selectedDate,
+                            firstDate: DateTime(2024),
+                            lastDate: DateTime(2030),
+                          );
+
+                          if (pickedDate != null) {
+                            setModalState(() {
+                              selectedDate = pickedDate;
+                            });
+                          }
+                        },
+                        icon: const Icon(Icons.calendar_month),
+                        label: Text(
+                          'Date: ${formatDate(selectedDate)}',
+                          style: const TextStyle(fontSize: 18),
                         ),
                       ),
-                      items: const [
-                        DropdownMenuItem(
-                          value: 'Today',
-                          child: Text('Today'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'Tomorrow',
-                          child: Text('Tomorrow'),
-                        ),
-                      ],
-                      onChanged: (value) {
-                        setModalState(() {
-                          selectedDay = value!;
-                        });
-                      },
                     ),
 
                     const SizedBox(height: 16),
@@ -377,7 +393,7 @@ class _TaskScreenState extends State<TaskScreen> {
                           addTask(
                             Task(
                               title: titleController.text.trim(),
-                              day: selectedDay,
+                              day: formatDate(selectedDate),
                               time: selectedTime.format(context),
                               category: selectedCategory,
                             ),
@@ -460,9 +476,7 @@ class _TaskScreenState extends State<TaskScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final todayTasks = visibleTasks.where((task) => task.day == 'Today').toList();
-    final tomorrowTasks =
-        visibleTasks.where((task) => task.day == 'Tomorrow').toList();
+    final taskDays = visibleTasks.map((task) => task.day).toSet().toList();
 
     return Scaffold(
       backgroundColor: const Color(0xFFD7EEF2),
@@ -575,8 +589,13 @@ class _TaskScreenState extends State<TaskScreen> {
                       )
                     : ListView(
                         children: [
-                          buildTaskSection('Today', todayTasks),
-                          buildTaskSection('Tomorrow', tomorrowTasks),
+                          ...taskDays.map((day) {
+                            final tasksByDay = visibleTasks
+                                .where((task) => task.day == day)
+                                .toList();
+
+                            return buildTaskSection(day, tasksByDay);
+                          }),
                           const SizedBox(height: 40),
                         ],
                       ),

@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   runApp(const MyApp());
@@ -20,6 +22,28 @@ class Task {
     required this.category,
     this.isDone = false,
   }) : id = id ?? UniqueKey().toString();
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'title': title,
+      'day': day,
+      'time': time,
+      'category': category,
+      'isDone': isDone,
+    };
+  }
+
+  factory Task.fromJson(Map<String, dynamic> json) {
+    return Task(
+      id: json['id'],
+      title: json['title'],
+      day: json['day'],
+      time: json['time'],
+      category: json['category'],
+      isDone: json['isDone'],
+    );
+  }
 }
 
 class MyApp extends StatelessWidget {
@@ -30,10 +54,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'To Do App',
-      theme: ThemeData(
-        useMaterial3: true,
-        fontFamily: 'Arial',
-      ),
+      theme: ThemeData(useMaterial3: true, fontFamily: 'Arial'),
       home: const StartScreen(),
     );
   }
@@ -54,7 +75,6 @@ class StartScreen extends StatelessWidget {
           child: Column(
             children: [
               const SizedBox(height: 90),
-
               const Text(
                 'My To Do List',
                 style: TextStyle(
@@ -63,17 +83,11 @@ class StartScreen extends StatelessWidget {
                   color: Color(0xFF0B3F73),
                 ),
               ),
-
               const SizedBox(height: 10),
-
               const Text(
                 'Plan your day',
-                style: TextStyle(
-                  fontSize: 22,
-                  color: Color(0xFF0B3F73),
-                ),
+                style: TextStyle(fontSize: 22, color: Color(0xFF0B3F73)),
               ),
-
               const SizedBox(height: 80),
 
               Container(
@@ -82,10 +96,7 @@ class StartScreen extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(22),
-                  border: Border.all(
-                    color: const Color(0xFF2F80B7),
-                    width: 4,
-                  ),
+                  border: Border.all(color: const Color(0xFF2F80B7), width: 4),
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black.withOpacity(0.15),
@@ -94,10 +105,10 @@ class StartScreen extends StatelessWidget {
                     ),
                   ],
                 ),
-                child: const Icon(
-                  Icons.checklist_rounded,
-                  size: 120,
-                  color: Color(0xFF0B3F73),
+                child: Image.asset(
+                  'lib/assets/list-icon-1423.png',
+                  width: 130,
+                  height: 130,
                 ),
               ),
 
@@ -124,10 +135,7 @@ class StartScreen extends StatelessWidget {
                   },
                   child: const Text(
                     'Start',
-                    style: TextStyle(
-                      fontSize: 24,
-                      color: Colors.white,
-                    ),
+                    style: TextStyle(fontSize: 24, color: Colors.white),
                   ),
                 ),
               ),
@@ -153,19 +161,9 @@ class TaskScreen extends StatefulWidget {
 class _TaskScreenState extends State<TaskScreen> {
   int selectedIndex = 0;
 
-  final List<Task> tasks = [
-    Task(
-      title: 'Do homework',
-      day: 'Today',
-      time: '18:00',
-      category: 'Study',
-    ),
-    Task(
-      title: 'Buy groceries',
-      day: 'Today',
-      time: '21:00',
-      category: 'Home',
-    ),
+  List<Task> tasks = [
+    Task(title: 'Do homework', day: 'Today', time: '18:00', category: 'Study'),
+    Task(title: 'Buy groceries', day: 'Today', time: '21:00', category: 'Home'),
     Task(
       title: 'Read a book',
       day: 'Today',
@@ -180,6 +178,35 @@ class _TaskScreenState extends State<TaskScreen> {
       category: 'Study',
     ),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    loadTasks();
+  }
+
+  Future<void> saveTasks() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    final taskList = tasks.map((task) {
+      return jsonEncode(task.toJson());
+    }).toList();
+
+    await prefs.setStringList('tasks', taskList);
+  }
+
+  Future<void> loadTasks() async {
+    final prefs = await SharedPreferences.getInstance();
+    final savedTasks = prefs.getStringList('tasks');
+
+    if (savedTasks == null) return;
+
+    setState(() {
+      tasks = savedTasks.map((taskString) {
+        return Task.fromJson(jsonDecode(taskString));
+      }).toList();
+    });
+  }
 
   List<Task> get visibleTasks {
     if (selectedIndex == 0) {
@@ -215,18 +242,21 @@ class _TaskScreenState extends State<TaskScreen> {
     setState(() {
       task.isDone = value;
     });
+    saveTasks();
   }
 
   void deleteTask(Task task) {
     setState(() {
       tasks.remove(task);
     });
+    saveTasks();
   }
 
   void addTask(Task task) {
     setState(() {
       tasks.insert(0, task);
     });
+    saveTasks();
   }
 
   void showAddTaskSheet() {
@@ -241,9 +271,7 @@ class _TaskScreenState extends State<TaskScreen> {
       isScrollControlled: true,
       backgroundColor: const Color(0xFFD7EEF2),
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(28),
-        ),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
       builder: (context) {
         return StatefulBuilder(
@@ -329,14 +357,8 @@ class _TaskScreenState extends State<TaskScreen> {
                           value: 'Study',
                           child: Text('📚 Study'),
                         ),
-                        DropdownMenuItem(
-                          value: 'Home',
-                          child: Text('🏠 Home'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'Work',
-                          child: Text('💻 Work'),
-                        ),
+                        DropdownMenuItem(value: 'Home', child: Text('🏠 Home')),
+                        DropdownMenuItem(value: 'Work', child: Text('💻 Work')),
                         DropdownMenuItem(
                           value: 'Personal',
                           child: Text('⭐ Personal'),
@@ -403,10 +425,7 @@ class _TaskScreenState extends State<TaskScreen> {
                         },
                         child: const Text(
                           'Save task',
-                          style: TextStyle(
-                            fontSize: 20,
-                            color: Colors.white,
-                          ),
+                          style: TextStyle(fontSize: 20, color: Colors.white),
                         ),
                       ),
                     ),
@@ -456,11 +475,7 @@ class _TaskScreenState extends State<TaskScreen> {
                 color: Colors.red,
                 borderRadius: BorderRadius.circular(18),
               ),
-              child: const Icon(
-                Icons.delete,
-                color: Colors.white,
-                size: 30,
-              ),
+              child: const Icon(Icons.delete, color: Colors.white, size: 30),
             ),
             child: TaskCard(
               task: task,
@@ -491,18 +506,12 @@ class _TaskScreenState extends State<TaskScreen> {
           });
         },
         items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.today),
-            label: 'Active',
-          ),
+          BottomNavigationBarItem(icon: Icon(Icons.today), label: 'Active'),
           BottomNavigationBarItem(
             icon: Icon(Icons.check_circle),
             label: 'Done',
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.list),
-            label: 'All',
-          ),
+          BottomNavigationBarItem(icon: Icon(Icons.list), label: 'All'),
         ],
       ),
 
@@ -564,11 +573,7 @@ class _TaskScreenState extends State<TaskScreen> {
                           ),
                         ),
                       ),
-                      Icon(
-                        Icons.add_box,
-                        color: Color(0xFF0B3F73),
-                        size: 34,
-                      ),
+                      Icon(Icons.add_box, color: Color(0xFF0B3F73), size: 34),
                     ],
                   ),
                 ),
@@ -614,11 +619,7 @@ class TaskCard extends StatelessWidget {
   final Task task;
   final ValueChanged<bool> onChanged;
 
-  const TaskCard({
-    super.key,
-    required this.task,
-    required this.onChanged,
-  });
+  const TaskCard({super.key, required this.task, required this.onChanged});
 
   String getCategoryIcon(String category) {
     if (category == 'Study') return '📚';

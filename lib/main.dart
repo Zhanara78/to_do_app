@@ -2,19 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'firebase_options.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   runApp(const MyApp());
 }
 
 class Task {
-  String id; // Убрали final, чтобы присваивать ID от Firebase после сохранения
+  String id;
   String title;
   String day;
   String time;
@@ -22,7 +21,7 @@ class Task {
   bool isDone;
 
   Task({
-    this.id = '', // По умолчанию ID пустой для новых задач
+    this.id = '',
     required this.title,
     required this.day,
     required this.time,
@@ -39,11 +38,141 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'To Do App',
-      theme: ThemeData(
-        useMaterial3: true,
-        fontFamily: 'Arial',
+      theme: ThemeData(useMaterial3: true, fontFamily: 'Arial'),
+      home: const AuthScreen(),
+    );
+  }
+}
+
+class AuthScreen extends StatefulWidget {
+  const AuthScreen({super.key});
+
+  @override
+  State<AuthScreen> createState() => _AuthScreenState();
+}
+
+class _AuthScreenState extends State<AuthScreen> {
+  final emailController = TextEditingController();
+  final passwordController = TextEditingController();
+
+  bool isLogin = true;
+  bool loading = false;
+
+  Future<void> submit() async {
+    try {
+      setState(() {
+        loading = true;
+      });
+
+      if (isLogin) {
+        await FirebaseAuth.instance.signInWithEmailAndPassword(
+          email: emailController.text.trim(),
+          password: passwordController.text.trim(),
+        );
+      } else {
+        await FirebaseAuth.instance.createUserWithEmailAndPassword(
+          email: emailController.text.trim(),
+          password: passwordController.text.trim(),
+        );
+      }
+
+      if (!mounted) return;
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const StartScreen()),
+      );
+    } on FirebaseAuthException catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.message ?? 'Auth error')));
+    }
+
+    setState(() {
+      loading = false;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFD7EEF2),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                isLogin ? 'Login' : 'Register',
+                style: const TextStyle(
+                  fontSize: 36,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF0B3F73),
+                ),
+              ),
+              const SizedBox(height: 30),
+              TextField(
+                controller: emailController,
+                decoration: InputDecoration(
+                  hintText: 'Email',
+                  filled: true,
+                  fillColor: Colors.white,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide.none,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: passwordController,
+                obscureText: true,
+                decoration: InputDecoration(
+                  hintText: 'Password',
+                  filled: true,
+                  fillColor: Colors.white,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide.none,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                height: 55,
+                child: ElevatedButton(
+                  onPressed: loading ? null : submit,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF0B3F73),
+                  ),
+                  child: loading
+                      ? const CircularProgressIndicator(color: Colors.white)
+                      : Text(
+                          isLogin ? 'Login' : 'Register',
+                          style: const TextStyle(
+                            fontSize: 20,
+                            color: Colors.white,
+                          ),
+                        ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextButton(
+                onPressed: () {
+                  setState(() {
+                    isLogin = !isLogin;
+                  });
+                },
+                child: Text(
+                  isLogin ? 'Create account' : 'Already have account?',
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
-      home: const StartScreen(),
     );
   }
 }
@@ -72,10 +201,7 @@ class StartScreen extends StatelessWidget {
               const SizedBox(height: 10),
               const Text(
                 'Plan your day',
-                style: TextStyle(
-                  fontSize: 22,
-                  color: Color(0xFF0B3F73),
-                ),
+                style: TextStyle(fontSize: 22, color: Color(0xFF0B3F73)),
               ),
               const SizedBox(height: 80),
               Container(
@@ -84,10 +210,7 @@ class StartScreen extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(22),
-                  border: Border.all(
-                    color: const Color(0xFF2F80B7),
-                    width: 4,
-                  ),
+                  border: Border.all(color: const Color(0xFF2F80B7), width: 4),
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black.withOpacity(0.15),
@@ -96,9 +219,7 @@ class StartScreen extends StatelessWidget {
                     ),
                   ],
                 ),
-                child: Image.asset(
-                  'lib/assets/list-icon-1423.png',
-                ),
+                child: Image.asset('lib/assets/list-icon-1423.png'),
               ),
               const Spacer(),
               SizedBox(
@@ -121,10 +242,7 @@ class StartScreen extends StatelessWidget {
                   },
                   child: const Text(
                     'Start',
-                    style: TextStyle(
-                      fontSize: 24,
-                      color: Colors.white,
-                    ),
+                    style: TextStyle(fontSize: 24, color: Colors.white),
                   ),
                 ),
               ),
@@ -148,14 +266,20 @@ class _TaskScreenState extends State<TaskScreen> {
   int selectedIndex = 0;
   List<Task> tasks = [];
 
+  // Получаем UID текущего пользователя
+  String get uid => FirebaseAuth.instance.currentUser!.uid;
+
   @override
   void initState() {
     super.initState();
     loadTasks();
   }
 
+  // Загружаем задачи ТОЛЬКО для конкретного пользователя
   Future<void> loadTasks() async {
     final snapshot = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(uid)
         .collection('tasks')
         .get();
 
@@ -163,7 +287,7 @@ class _TaskScreenState extends State<TaskScreen> {
       tasks = snapshot.docs.map((doc) {
         final data = doc.data();
         return Task(
-          id: doc.id, // Подтягиваем настоящий ID документа из Firebase
+          id: doc.id,
           title: data['title'] ?? '',
           day: data['day'] ?? 'Today',
           time: data['time'] ?? '',
@@ -174,28 +298,24 @@ class _TaskScreenState extends State<TaskScreen> {
     });
   }
 
-  // ИСПРАВЛЕННЫЙ МЕТОД СОХРАНЕНИЯ В FIREBASE
+  // Сохраняем задачу в коллекцию конкретного пользователя
   Future<void> saveTaskToFirestore(Task task) async {
+    final userTasks = FirebaseFirestore.instance
+        .collection('users')
+        .doc(uid)
+        .collection('tasks');
+
     if (task.id.isEmpty) {
-      // 1. Если задача новая (ID пустой), создаем новый документ через .add()
-      final docRef = await FirebaseFirestore.instance
-          .collection('tasks')
-          .add({
+      final docRef = await userTasks.add({
         'title': task.title,
         'day': task.day,
         'time': task.time,
         'category': task.category,
         'isDone': task.isDone,
       });
-      
-      // Присваиваем задаче сгенерированный базой уникальный ID
       task.id = docRef.id;
     } else {
-      // 2. Если задача уже есть (например, кликнули чекбокс), обновляем существующий документ
-      await FirebaseFirestore.instance
-          .collection('tasks')
-          .doc(task.id)
-          .set({
+      await userTasks.doc(task.id).set({
         'title': task.title,
         'day': task.day,
         'time': task.time,
@@ -241,6 +361,7 @@ class _TaskScreenState extends State<TaskScreen> {
     saveTaskToFirestore(task);
   }
 
+  // Удаляем задачу из коллекции конкретного пользователя
   void deleteTask(Task task) async {
     setState(() {
       tasks.remove(task);
@@ -248,6 +369,8 @@ class _TaskScreenState extends State<TaskScreen> {
 
     if (task.id.isNotEmpty) {
       await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
           .collection('tasks')
           .doc(task.id)
           .delete();
@@ -272,9 +395,7 @@ class _TaskScreenState extends State<TaskScreen> {
       isScrollControlled: true,
       backgroundColor: const Color(0xFFD7EEF2),
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(28),
-        ),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
       builder: (context) {
         return StatefulBuilder(
@@ -354,14 +475,8 @@ class _TaskScreenState extends State<TaskScreen> {
                           value: 'Study',
                           child: Text('📚 Study'),
                         ),
-                        DropdownMenuItem(
-                          value: 'Home',
-                          child: Text('🏠 Home'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'Work',
-                          child: Text('💻 Work'),
-                        ),
+                        DropdownMenuItem(value: 'Home', child: Text('🏠 Home')),
+                        DropdownMenuItem(value: 'Work', child: Text('💻 Work')),
                         DropdownMenuItem(
                           value: 'Personal',
                           child: Text('⭐ Personal'),
@@ -424,10 +539,7 @@ class _TaskScreenState extends State<TaskScreen> {
                         },
                         child: const Text(
                           'Save task',
-                          style: TextStyle(
-                            fontSize: 20,
-                            color: Colors.white,
-                          ),
+                          style: TextStyle(fontSize: 20, color: Colors.white),
                         ),
                       ),
                     ),
@@ -474,11 +586,7 @@ class _TaskScreenState extends State<TaskScreen> {
                 color: Colors.red,
                 borderRadius: BorderRadius.circular(18),
               ),
-              child: const Icon(
-                Icons.delete,
-                color: Colors.white,
-                size: 30,
-              ),
+              child: const Icon(Icons.delete, color: Colors.white, size: 30),
             ),
             child: TaskCard(
               task: task,
@@ -494,13 +602,31 @@ class _TaskScreenState extends State<TaskScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final taskDays = visibleTasks
-        .map((task) => task.day)
-        .toSet()
-        .toList();
+    final taskDays = visibleTasks.map((task) => task.day).toSet().toList();
 
     return Scaffold(
       backgroundColor: const Color(0xFFD7EEF2),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFFD7EEF2),
+        elevation: 0,
+        automaticallyImplyLeading: false,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout, color: Color(0xFF0B3F73), size: 30),
+            onPressed: () async {
+              await FirebaseAuth.instance.signOut();
+
+              if (!context.mounted) return;
+
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(builder: (_) => const AuthScreen()),
+                (route) => false,
+              );
+            },
+          ),
+        ],
+      ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: selectedIndex,
         selectedItemColor: const Color(0xFF0B3F73),
@@ -511,18 +637,12 @@ class _TaskScreenState extends State<TaskScreen> {
           });
         },
         items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.today),
-            label: 'Active',
-          ),
+          BottomNavigationBarItem(icon: Icon(Icons.today), label: 'Active'),
           BottomNavigationBarItem(
             icon: Icon(Icons.check_circle),
             label: 'Done',
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.list),
-            label: 'All',
-          ),
+          BottomNavigationBarItem(icon: Icon(Icons.list), label: 'All'),
         ],
       ),
       body: SafeArea(
@@ -531,7 +651,7 @@ class _TaskScreenState extends State<TaskScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SizedBox(height: 45),
+              const SizedBox(height: 10),
               const Text(
                 'My Tasks',
                 style: TextStyle(
@@ -578,11 +698,7 @@ class _TaskScreenState extends State<TaskScreen> {
                           ),
                         ),
                       ),
-                      Icon(
-                        Icons.add_box,
-                        color: Color(0xFF0B3F73),
-                        size: 34,
-                      ),
+                      Icon(Icons.add_box, color: Color(0xFF0B3F73), size: 34),
                     ],
                   ),
                 ),
@@ -624,11 +740,7 @@ class TaskCard extends StatelessWidget {
   final Task task;
   final ValueChanged<bool> onChanged;
 
-  const TaskCard({
-    super.key,
-    required this.task,
-    required this.onChanged,
-  });
+  const TaskCard({super.key, required this.task, required this.onChanged});
 
   String getCategoryIcon(String category) {
     if (category == 'Study') return '📚';
@@ -641,14 +753,9 @@ class TaskCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.symmetric(
-        horizontal: 14,
-        vertical: 14,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
       decoration: BoxDecoration(
-        color: task.isDone
-            ? Colors.white.withOpacity(0.55)
-            : Colors.white,
+        color: task.isDone ? Colors.white.withOpacity(0.55) : Colors.white,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(
           color: const Color(0xFF0B3F73).withOpacity(0.35),
